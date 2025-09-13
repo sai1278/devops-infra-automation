@@ -1,0 +1,5 @@
+# Require infra team approval for infra files
+/infrastructure/ @your-org/infra-team
+
+# Require devops owner for scripts
+/scripts/ @your-org/devops-team
