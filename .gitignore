@@ -1,0 +1,69 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.env/
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# === Docker ===
+docker-compose.override.yml
+docker-compose.*.yml
+docker-compose.*.yaml
+docker-compose.local.yml
+.env.docker.local
+*.log
+*.pid
+
+# === Node/Frontend (if present) ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log
+
+# === Packaging / build artifacts ===
+*.egg
+*.egg-info/
+wheelhouse/
+pip-wheel-metadata/
+coverage/
+reports/
+*.out
+*.lock
+
+# === Secrets / keys / credentials ===
+*.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.pfx
+*.jks
+*.credentials
+secrets.yml
+credentials.yml
+
+# === IDE / Editor / OS files ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# === Misc ===
+*.bak
+*.tmp
+*.log
