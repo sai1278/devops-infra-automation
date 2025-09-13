@@ -1,0 +1,32 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Node.js (if your src has frontend/backend)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      # Step 3: Install dependencies (example for Node project)
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./src
+
+      # Step 4: Run tests (replace with your test command)
+      - name: Run tests
+        run: npm test
+        working-directory: ./src
