@@ -1,13 +1,13 @@
+import os
+import time
 from fastapi import FastAPI, HTTPException
-import time, os, psutil   # psutil for system metrics
 
 app = FastAPI()
 
-# Track start time
+# Track uptime
 start_time = time.time()
-VERSION = "1.0.0"
 
-# Mock DB
+# Mock DB (already in your code)
 users = [
     {"id": 1, "name": "Sai"},
     {"id": 2, "name": "kanchi"}
@@ -28,24 +28,12 @@ def get_user(user_id: int):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@app.get("/health")
-def health_check():
-    uptime = round(time.time() - start_time, 2)
+# ✅ New endpoint: /info
+@app.get("/info")
+def get_info():
     return {
-        "status": "healthy",
-        "uptime_seconds": uptime,
-        "version": VERSION
-    }
-
-@app.get("/metrics")
-def metrics():
-    uptime = round(time.time() - start_time, 2)
-    process = psutil.Process(os.getpid())  # current process stats
-
-    return {
-        "uptime_seconds": uptime,
-        "version": VERSION,
-        "cpu_percent": psutil.cpu_percent(interval=0.1),
-        "memory_usage_mb": round(process.memory_info().rss / 1024 / 1024, 2),
-        "active_users": len(users)
+        "app_name": "DevOps Infra Automation API",
+        "version": "1.0.0",
+        "environment": os.getenv("APP_ENV", "development"),
+        "uptime_seconds": int(time.time() - start_time)
     }
