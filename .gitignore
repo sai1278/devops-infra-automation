@@ -67,3 +67,14 @@ Thumbs.db
 *.bak
 *.tmp
 *.log
+# Python venv
+venv/
+src/api/venv/
+# Bytecode
+__pycache__/
+*.pyc
+# Editor
+.vscode/
+.idea/
+# Logs
+*.log
