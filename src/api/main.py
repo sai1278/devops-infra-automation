@@ -12,9 +12,7 @@ import structlog
 # setup structured logging (returns a structlog logger)
 logger = setup_logging(level=os.getenv("LOG_LEVEL", "INFO"))
 
-app = FastAPI()
-
-# Add middleware
+app = FastAPI(title=os.getenv("APP_NAME", "DevOps Infra Automation API"))
 app.add_middleware(CorrelationIdMiddleware)
 
 # Uptime tracking
