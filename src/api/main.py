@@ -1,13 +1,14 @@
 import os
 import time
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
+from pydantic import BaseModel, Field
 
 app = FastAPI()
 
 # Track uptime
 start_time = time.time()
 
-# Mock DB (already in your code)
+# Mock DB
 users = [
     {"id": 1, "name": "Sai"},
     {"id": 2, "name": "kanchi"}
@@ -28,7 +29,7 @@ def get_user(user_id: int):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-# ✅ New endpoint: /info
+# ✅ GET /info endpoint
 @app.get("/info")
 def get_info():
     return {
@@ -36,4 +37,17 @@ def get_info():
         "version": "1.0.0",
         "environment": os.getenv("APP_ENV", "development"),
         "uptime_seconds": int(time.time() - start_time)
+    }
+
+# ✅ POST /data endpoint
+class DataInput(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50, description="Name must be 2–50 chars")
+    age: int = Field(..., ge=0, le=120, description="Age must be between 0–120")
+    email: str = Field(..., pattern=r'^\S+@\S+\.\S+$', description="Valid email address")
+
+@app.post("/data")
+def create_data(data: DataInput = Body(...)):
+    return {
+        "message": "Data received successfully",
+        "received": data.dict()
     }
