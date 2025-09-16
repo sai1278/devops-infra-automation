@@ -5,6 +5,15 @@ from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel, Field
 
 # logging imports
+from dotenv import load_dotenv
+load_dotenv()
+
+APP_NAME = os.getenv("APP_NAME", "Default API")
+APP_ENV = os.getenv("APP_ENV", "development")
+APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+start_time = time.time()
 from logging_setup import setup_logging
 from middleware.correlation import CorrelationIdMiddleware
 import structlog
@@ -23,6 +32,21 @@ users = [
     {"id": 1, "name": "Sai"},
     {"id": 2, "name": "kanchi"}
 ]
+
+# after: logger = setup_logging(...) and app = FastAPI(...)
+@app.on_event("startup")
+async def on_startup():
+    # log environment and version at startup
+    logger.info("app_startup", environment=APP_ENV, version=APP_VERSION)
+
+@app.get("/info")
+def get_info():
+    return {
+        "app_name": APP_NAME,
+        "version": APP_VERSION,
+        "environment": APP_ENV,
+        "uptime_seconds": int(time.time() - start_time)
+    }
 
 @app.get("/")
 def read_root():
