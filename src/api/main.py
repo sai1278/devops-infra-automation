@@ -4,6 +4,7 @@ import time
 import signal
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import JSONResponse
+from middleware.req_res import RequestResponseLoggingMiddleware
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -27,6 +28,7 @@ logger = setup_logging(level=LOG_LEVEL)
 
 app = FastAPI(title=APP_NAME)
 app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(RequestResponseLoggingMiddleware)
 
 # -------------------------
 # Startup & Shutdown Events
