@@ -2,7 +2,9 @@
 import os
 import time
 import signal
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -38,14 +40,45 @@ async def on_shutdown():
     logger.info("🛑 app_shutdown", message="Application shutting down gracefully")
 
 # -------------------------
-# Optional: system signal handling (safe)
+# Safe Signal Handling
 # -------------------------
-# This logs signals without calling sys.exit()
+shutting_down = False
 def handle_exit(sig, frame):
-    logger.info(f"Received exit signal {sig}. Cleaning up...")
+    global shutting_down
+    if not shutting_down:
+        shutting_down = True
+        logger.info(f"Received exit signal {sig}. Cleaning up...")
 
 signal.signal(signal.SIGINT, handle_exit)   # Ctrl+C
 signal.signal(signal.SIGTERM, handle_exit)  # Docker/K8s stop
+
+# -------------------------
+# Global Error Handlers
+# -------------------------
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.warning("http_exception", status_code=exc.status_code, detail=exc.detail, path=request.url.path)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail, "path": request.url.path},
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error("validation_error", errors=exc.errors(), body=exc.body, path=request.url.path)
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation error", "details": exc.errors(), "path": request.url.path},
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception("unhandled_exception", error=str(exc), path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "path": request.url.path},
+    )
 
 # -------------------------
 # Routes
@@ -57,33 +90,51 @@ users = [
 
 @app.get("/")
 def read_root():
-    logger.info("root_called")
-    return {"message": f"Welcome to {APP_NAME}"}
+    try:
+        logger.info("root_called")
+        return {"message": f"Welcome to {APP_NAME}"}
+    except Exception as e:
+        logger.exception("root_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to load root endpoint")
 
 @app.get("/users")
 def get_users():
-    logger.info("get_users", active_users=len(users))
-    return users
+    try:
+        logger.info("get_users", active_users=len(users))
+        return users
+    except Exception as e:
+        logger.exception("get_users_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Could not fetch users")
 
 @app.get("/users/{user_id}")
 def get_user(user_id: int):
-    logger.info("get_user_request", user_id=user_id)
-    user = next((u for u in users if u["id"] == user_id), None)
-    if not user:
-        logger.warning("user_not_found", user_id=user_id)
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+    try:
+        logger.info("get_user_request", user_id=user_id)
+        user = next((u for u in users if u["id"] == user_id), None)
+        if not user:
+            logger.warning("user_not_found", user_id=user_id)
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except HTTPException:
+        raise  # Let HTTPException be handled by its own handler
+    except Exception as e:
+        logger.exception("get_user_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Could not fetch user")
 
 @app.get("/info")
 def get_info():
-    uptime = int(time.time() - start_time)
-    logger.info("info_requested", uptime=uptime)
-    return {
-        "app_name": APP_NAME,
-        "version": APP_VERSION,
-        "environment": APP_ENV,
-        "uptime_seconds": uptime
-    }
+    try:
+        uptime = int(time.time() - start_time)
+        logger.info("info_requested", uptime=uptime)
+        return {
+            "app_name": APP_NAME,
+            "version": APP_VERSION,
+            "environment": APP_ENV,
+            "uptime_seconds": uptime
+        }
+    except Exception as e:
+        logger.exception("info_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Could not fetch app info")
 
 class DataInput(BaseModel):
     name: str = Field(..., min_length=2, max_length=50)
@@ -92,5 +143,9 @@ class DataInput(BaseModel):
 
 @app.post("/data")
 def create_data(data: DataInput = Body(...)):
-    logger.info("data_received", received=data.dict())
-    return {"message": "Data received successfully", "received": data.dict()}
+    try:
+        logger.info("data_received", received=data.dict())
+        return {"message": "Data received successfully", "received": data.dict()}
+    except Exception as e:
+        logger.exception("data_processing_failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Could not process data")
