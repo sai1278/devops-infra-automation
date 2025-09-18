@@ -26,9 +26,25 @@ import structlog
 
 logger = setup_logging(level=LOG_LEVEL)
 
+# -------------------------
+# Rate Limiting Setup
+# -------------------------
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)  # per client IP
 app = FastAPI(title=APP_NAME)
+
+# Attach middlewares
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(RequestResponseLoggingMiddleware)
+
+# Handle 429 (Too Many Requests)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # -------------------------
 # Startup & Shutdown Events
@@ -57,7 +73,6 @@ signal.signal(signal.SIGTERM, handle_exit)  # Docker/K8s stop
 # -------------------------
 # Global Error Handlers
 # -------------------------
-
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     logger.warning("http_exception", status_code=exc.status_code, detail=exc.detail, path=request.url.path)
@@ -91,7 +106,8 @@ users = [
 ]
 
 @app.get("/")
-def read_root():
+@limiter.limit("10/minute")   # max 10 requests/minute per IP
+def read_root(request: Request):
     try:
         logger.info("root_called")
         return {"message": f"Welcome to {APP_NAME}"}
@@ -100,7 +116,8 @@ def read_root():
         raise HTTPException(status_code=500, detail="Failed to load root endpoint")
 
 @app.get("/users")
-def get_users():
+@limiter.limit("5/minute")   # stricter: 5 requests/minute
+def get_users(request: Request):
     try:
         logger.info("get_users", active_users=len(users))
         return users
@@ -109,7 +126,8 @@ def get_users():
         raise HTTPException(status_code=500, detail="Could not fetch users")
 
 @app.get("/users/{user_id}")
-def get_user(user_id: int):
+@limiter.limit("5/minute")
+def get_user(request: Request, user_id: int):
     try:
         logger.info("get_user_request", user_id=user_id)
         user = next((u for u in users if u["id"] == user_id), None)
@@ -118,13 +136,14 @@ def get_user(user_id: int):
             raise HTTPException(status_code=404, detail="User not found")
         return user
     except HTTPException:
-        raise  # Let HTTPException be handled by its own handler
+        raise
     except Exception as e:
         logger.exception("get_user_failed", error=str(e))
         raise HTTPException(status_code=500, detail="Could not fetch user")
 
 @app.get("/info")
-def get_info():
+@limiter.limit("20/minute")   # more relaxed: 20 requests/minute
+def get_info(request: Request):
     try:
         uptime = int(time.time() - start_time)
         logger.info("info_requested", uptime=uptime)
@@ -144,7 +163,8 @@ class DataInput(BaseModel):
     email: str = Field(..., pattern=r'^\S+@\S+\.\S+$')
 
 @app.post("/data")
-def create_data(data: DataInput = Body(...)):
+@limiter.limit("3/minute")   # stricter on POST
+def create_data(request: Request, data: DataInput = Body(...)):
     try:
         logger.info("data_received", received=data.dict())
         return {"message": "Data received successfully", "received": data.dict()}
