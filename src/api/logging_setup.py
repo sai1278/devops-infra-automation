@@ -1,8 +1,17 @@
 # src/api/logging_setup.py
 import logging
-import structlog
 
-def setup_logging(level: str = "INFO"):
+import structlog
+from structlog.typing import FilteringBoundLogger
+
+
+def setup_logging(level: str = "INFO") -> FilteringBoundLogger:
+
+    # setup structlog...
+    return structlog.get_logger()
+
+
+def setup_logging_v2(level="DEBUG"):
     timestamper = structlog.processors.TimeStamper(fmt="iso")
 
     structlog.configure(
