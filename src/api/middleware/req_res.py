@@ -6,9 +6,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from src.api.validate_request import sanitize_string
+
 # Create a custom logger for request/response
 logger = logging.getLogger("req_res")
 logger.setLevel(logging.INFO)
+sanitized_query = {k: sanitize_string(v) for k, v in request.query_params.items()}
+logger.info("request", query=sanitized_query)
 
 # Add handler if not already added (to avoid duplicates in reload mode)
 if not logger.handlers:
